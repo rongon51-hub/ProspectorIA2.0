@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prospector IA - Navegación Completa</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .header {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-left: 5px solid #d4af37;
+        }
+        
+        .header h1 { 
+            color: #1e293b; 
+            font-size: 28px; 
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header p { color: #64748b; font-size: 14px; }
+        
+        .badge-gold {
+            background: linear-gradient(135deg, #d4af37, #f4d03f);
+            color: #1e293b;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
+        
+        /* STEPPER CLICKEABLE */
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 0 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 2;
+        }
+        
+        .step:hover:not(.disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .step.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .step.completed:not(:last-child)::after { background: #22c55e; }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-weight: bold;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s;
+        }
+        
+        .step.active .step-circle { 
+            background: linear-gradient(135deg, #d4af37, #f4d03f); 
+            color: #1e293b;
+            transform: scale(1.15);
+            box-shadow: 0 4px 12px rgba(212,175,55,0.4);
+        }
+        .step.completed .step-circle { background: #22c55e; }
+        .step.disabled .step-circle { background: #cbd5e1; }
+        
+        .step-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+        }
+        
+        .step.active .step-label { color: #d4af37; font-weight: 700; }
+        .step.completed .step-label { color: #22c55e; }
+        
+        .step-tooltip {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .step:hover:not(.disabled) .step-tooltip {
+            opacity: 1;
+        }
+        
+        .panel {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: none;
+            min-height: 400px;
+        }
+        
+        .panel.active { display: block; animation: fadeIn 0.4s; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .panel-title {
+            font-size: 20px;
+            color: #1e293b;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .alert-strategy {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-left: 4px solid #d4af37;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .alert-strategy h3 {
+            color: #92400e;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .alert-strategy p {
+            color: #78350f;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #334155;
+            font-size: 13px;
+        }
+        
+        .label-hint {
+            font-weight: normal;
+            color: #94a3b8;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea { min-height: 80px; resize: vertical; }
+        
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #d4af37, #f4d03f); 
+            color: #1e293b;
+        }
+        .btn-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(212,175,55,0.4);
+        }
+        
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-secondary:hover { background: #475569; }
+        
+        .btn-outline {
+            background: white;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+        .btn-outline:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: space-between;
+            padding-top: 20px;
+            border-top: 2px solid #f1f5f9;
+        }
+        
+        .btn-group-left {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn-group-right {
+            display: flex;
+            gap: 12px;
+        }
+        
+        /* GALERÍA MULTI-FOTO */
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover { 
+            background: #f1f5f9; 
+            border-color: #d4af37;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .gallery-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f0f0f0;
+            aspect-ratio: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .gallery-item .tipo-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(212,175,55,0.95);
+            color: #1e293b;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: 700;
+        }
+        
+        .gallery-item .remove-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(239,68,68,0.95);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .gallery-counter {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #475569;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* RESULTADOS */
+        .analysis-result {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+        }
+        
+        .profile-card {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .profile-field {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .profile-field:last-child { border-bottom: none; }
+        
+        .profile-label {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 12px;
+        }
+        
+        .profile-value {
+            color: #1e293b;
+            font-weight: 500;
+            text-align: right;
+            font-size: 13px;
+        }
+        
+        .score-display {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #d4af37, #f4d03f);
+            border-radius: 10px;
+            margin: 16px 0;
+        }
+        
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .score-label {
+            font-size: 14px;
+            color: #78350f;
+            margin-top: 4px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        
+        .badge-high { background: #22c55e; color: white; }
+        .badge-medium { background: #f59e0b; color: white; }
+        .badge-low { background: #ef4444; color: white; }
+        
+        /* CATEGORÍAS */
+        .message-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .category-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .category-card.selected {
+            border-color: #d4af37;
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.2);
+        }
+        
+        .category-icon { font-size: 28px; margin-bottom: 8px; }
+        .category-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .category-desc { font-size: 11px; color: #64748b; line-height: 1.4; }
+        
+        .category-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .meta-tag {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            color: #475569;
+            font-weight: 600;
+        }
+        
+        /* MENSAJE FINAL */
+        .message-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 14px;
+            color: #1e293b;
+            border-left: 4px solid #d4af37;
+            margin: 16px 0;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: #d4af37;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .hidden { display: none; }
+        
+        /* INDICADOR DE PROGRESO */
+        .progress-indicator {
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span style="background:#d4af37; color:#1e293b; padding:4px 12px; border-radius:8px;">P</span>
+                Prospecto IA
+                <span class="badge-gold">NAVEGACIÓN COMPLETA</span>
+            </h1>
+            <p>Haz clic en cualquier paso del stepper para navegar</p>
+        </div>
+
+        <!-- STEPPER CLICKEABLE -->
+        <div class="stepper">
+            <div class="step active" id="step1" onclick="navegarAPaso(1)">
+                <div class="step-circle">1</div>
+                <div class="step-label">Capturas</div>
+                <div class="step-tooltip">Sube imágenes</div>
+            </div>
+            <div class="step disabled" id="step2" onclick="navegarAPaso(2)">
+                <div class="step-circle">2</div>
+                <div class="step-label">Análisis IA</div>
+                <div class="step-tooltip">Procesamiento</div>
+            </div>
+            <div class="step disabled" id="step3" onclick="navegarAPaso(3)">
+                <div class="step-circle">3</div>
+                <div class="step-label">Calificación</div>
+                <div class="step-tooltip">Score 0-100</div>
+            </div>
+            <div class="step disabled" id="step4" onclick="navegarAPaso(4)">
+                <div class="step-circle">4</div>
+                <div class="step-label">Categoría</div>
+                <div class="step-tooltip">Tipo de mensaje</div>
+            </div>
+            <div class="step disabled" id="step5" onclick="navegarAPaso(5)">
+                <div class="step-circle">5</div>
+                <div class="step-label">Mensaje</div>
+                <div class="step-tooltip">Mensaje final</div>
+            </div>
+        </div>
+
+        <div class="progress-indicator" id="progressIndicator">
+            Paso 1 de 5: Capturas
+        </div>
+
+        <!-- PANEL 1: CAPTURAS -->
+        <div class="panel active" id="panel1">
+            <h2 class="panel-title">
+                <span class="panel-number">1</span>
+                Sube Capturas del Prospecto
+            </h2>
+
+            <div class="alert-strategy">
+                <h3>📸 Instrucciones</h3>
+                <p>
+                    Sube 3-6 capturas: bio, posts, comentarios, stories. 
+                    Las imágenes se comprimen automáticamente para ahorrar recursos.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>Usuario de Instagram <span class="label-hint">(sin @)</span></label>
+                <input type="text" id="usuarioIG" placeholder="nombre_usuario">
+            </div>
+
+            <div class="form-group">
+                <label>Subir capturas <span class="label-hint">(múltiples imágenes)</span></label>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <p style="font-size: 48px; margin-bottom: 12px;">📷</p>
+                    <p><strong>Clic para subir imágenes</strong></p>
+                    <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Se comprimirán automáticamente</p>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+            </div>
+
+            <div class="gallery-counter hidden" id="galleryCounter">
+                <span><strong id="photoCount">0</strong> capturas cargadas</span>
+                <button class="btn btn-outline" style="padding:6px 12px; font-size:11px;" onclick="limpiarGaleria()">🗑️ Limpiar</button>
+            </div>
+
+            <div class="gallery" id="gallery"></div>
+
+            <div class="btn-group">
+                <div class="btn-group-left">
+                    <button class="btn btn-outline" onclick="reiniciarTodo()">🔄 Reiniciar</button>
+                </div>
+                <div class="btn-group-right">
+                    <button class="btn btn-primary" onclick="navegarAPaso(2)" id="btnSiguiente1" disabled>
+                        Analizar con IA →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL 2: ANÁLISIS IA -->
+        <div class="panel" id="panel2">
+            <h2 class="panel-title">
+                <span class="panel-number">2</span>
+                Análisis Automático con IA
+            </h2>
+
+            <div id="loadingAnalisis" class="hidden" style="text-align:center; padding:40px;">
+                <div class="loading-spinner" style="margin:0 auto 20px;"></div>
+                <p style="color:#64748b; font-size:14px;">Analizando capturas con IA de visión...</p>
+                <p style="font-size:12px; color:#94a3b8; margin-top:8px;">Extrayendo: nombre, país, intereses, dolores, aspiraciones</p>
+            </div>
+
+            <div id="resultadoAnalisis" class="analysis-result hidden">
+                <h3 style="color:#15803d; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                    <span>✅</span> Perfil Extraído
+                </h3>
+                
+                <div class="profile-card" id="perfilExtraido">
+                    <!-- Se llena dinámicamente -->
+                </div>
+
+                <div class="btn-group">
+                    <div class="btn-group-left">
+                        <button class="btn btn-outline" onclick="navegarAPaso(1)">← Volver a Capturas</button>
+                    </div>
+                    <div class="btn-group-right">
+                        <button class="btn btn-success" onclick="navegarAPaso(3)">
+                            Calificar Prospecto →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL 3: CALIFICACIÓN -->
+        <div class="panel" id="panel3">
+            <h2 class="panel-title">
+                <span class="panel-number">3</span>
+                Calificación del Prospecto
+            </h2>
+
+            <div class="score-display">
+                <div class="score-number" id="scoreNumero">--</div>
+                <div class="score-label">Puntaje de Calificación</div>
+            </div>
+
+            <div id="detalleCalificacion" style="margin:20px 0;">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+            <div class="alert-strategy" style="background:#f0f9ff; border-left-color:#0ea5e9;">
+                <h3 style="color:#0369a1;">💡 Recomendación</h3>
+                <p id="recomendacionCalificacion">
+                    Basado en el análisis, te recomendamos usar la categoría de mensaje que mejor se adapte.
+                </p>
+            </div>
+
+            <div class="btn-group">
+                <div class="btn-group-left">
+                    <button class="btn btn-outline" onclick="navegarAPaso(2)">← Volver al Análisis</button>
+                </div>
+                <div class="btn-group-right">
+                    <button class="btn btn-primary" onclick="navegarAPaso(4)">
+                        Seleccionar Categoría →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL 4: CATEGORÍAS -->
+        <div class="panel" id="panel4">
+            <h2 class="panel-title">
+                <span class="panel-number">4</span>
+                Categoría de Mensaje de Atracción
+            </h2>
+
+            <div class="alert-strategy">
+                <h3>🎯 Selecciona el tipo de mensaje</h3>
+                <p>Basado en el análisis del prospecto, elige la categoría que mejor se adapte a tu estrategia.</p>
+            </div>
+
+            <div class="message-categories">
+                <div class="category-card selected" onclick="selectCategory('comentario_atraccion')">
+                    <div class="category-icon">💬</div>
+                    <div class="category-title">Comentario Atracción</div>
+                    <div class="category-desc">Genera curiosidad para que visite tu perfil</div>
+                    <div class="category-meta">
+                        <span class="meta-tag">Máx 12 palabras</span>
+                        <span class="meta-tag">Atrae visitas</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="selectCategory('comentario_valor')">
+                    <div class="category-icon">💡</div>
+                    <div class="category-title">Comentario Valor</div>
+                    <div class="category-desc">Aporta insight útil, te posiciona como experto</div>
+                    <div class="category-meta">
+                        <span class="meta-tag">15-20 palabras</span>
+                        <span class="meta-tag">Autoridad</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="selectCategory('comentario_pregunta')">
+                    <div class="category-icon">❓</div>
+                    <div class="category-title">Comentario Pregunta</div>
+                    <div class="category-desc">Pregunta estratégica que genera engagement</div>
+                    <div class="category-meta">
+                        <span class="meta-tag">Máx 10 palabras</span>
+                        <span class="meta-tag">Engagement</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="selectCategory('story_reply')">
+                    <div class="category-icon">📱</div>
+                    <div class="category-title">Respuesta Story</div>
+                    <div class="category-desc">Respuesta a story, baja presión, alta conexión</div>
+                    <div class="category-meta">
+                        <span class="meta-tag">1-2 líneas</span>
+                        <span class="meta-tag">Personal</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="selectCategory('dm_inicial')">
+                    <div class="category-icon">📩</div>
+                    <div class="category-title">DM Inicial</div>
+                    <div class="category-desc">Si YA visitó tu perfil o interactuó</div>
+                    <div class="category-meta">
+                        <span class="meta-tag">3 líneas</span>
+                        <span class="meta-tag">24-48h después</span>
+                    </div>
+                </div>
+
+                <div class="category-card" onclick="selectCategory('dm_respuesta')">
+                    <div class="category-icon">💬</div>
+                    <div class="category-title">DM Respuesta</div>
+                    <div class="category-desc">Cuando YA respondió o preguntó</div>
+                    <div class="category-meta">
+                        <span class="meta-tag">Alto interés</span>
+                        <span class="meta-tag">Valor inmediato</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <div class="btn-group-left">
+                    <button class="btn btn-outline" onclick="navegarAPaso(3)">← Volver a Calificación</button>
+                </div>
+                <div class="btn-group-right">
+                    <button class="btn btn-primary" onclick="navegarAPaso(5)">
+                        Generar Mensaje →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL 5: MENSAJE FINAL -->
+        <div class="panel" id="panel5">
+            <h2 class="panel-title">
+                <span class="panel-number">5</span>
+                Mensaje Generado
+            </h2>
+
+            <div class="alert-strategy" style="background:#f0fdf4; border-left-color:#22c55e;">
+                <h3 style="color:#15803d;">✅ Mensaje Personalizado</h3>
+                <p>Basado en el análisis de <strong id="nombreProspectoMensaje">--</strong> y su perfil extraído.</p>
+            </div>
+
+            <div class="message-box" id="mensajeContenido"></div>
+            
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn btn-primary" onclick="copiarMensaje()" style="flex:1;">
+                    📋 Copiar Mensaje
+                </button>
+                <button class="btn btn-outline" onclick="regenerarMensaje()" style="flex:1;">
+                    🔄 Otra Versión
+                </button>
+            </div>
+
+            <div class="btn-group">
+                <div class="btn-group-left">
+                    <button class="btn btn-outline" onclick="navegarAPaso(4)">← Volver a Categorías</button>
+                </div>
+                <div class="btn-group-right">
+                    <button class="btn btn-success" onclick="nuevoProspecto()">
+                        + Nuevo Prospecto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">Procesando...</div>
+    </div>
+
+    <script>
+        // ESTADO GLOBAL
+        let prospecto = {
+            id: crypto.randomUUID(),
+            usuario: '',
+            capturas: [],
+            analisis: {},
+            calificacion: {},
+            categoria: 'comentario_atraccion',
+            mensaje: ''
+        };
+
+        let pasoActual = 1;
+        let analisisCompletado = false;
+        let calificacionCompletada = false;
+        let versionesGeneradas = 0;
+
+        // INICIALIZACIÓN
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('fileInput').addEventListener('change', handleFiles);
+            actualizarStepper();
+        });
+
+        // NAVEGACIÓN PRINCIPAL
+        function navegarAPaso(n) {
+            // Validar si se puede navegar a ese paso
+            if (!puedeNavegarA(n)) {
+                alert('⚠️ Debes completar los pasos anteriores primero');
+                return;
+            }
+
+            pasoActual = n;
+            
+            // Actualizar paneles
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`panel${n}`).classList.add('active');
+            
+            // Actualizar stepper
+            actualizarStepper();
+            
+            // Actualizar indicador de progreso
+            const nombres = ['Capturas', 'Análisis IA', 'Calificación', 'Categoría', 'Mensaje'];
+            document.getElementById('progressIndicator').textContent = 
+                `Paso ${n} de 5: ${nombres[n-1]}`;
+
+            // Ejecutar acciones automáticas según el paso
+            if (n === 2 && !analisisCompletado) {
+                ejecutarAnalisis();
+            }
+            if (n === 3 && !calificacionCompletada) {
+                ejecutarCalificacion();
+            }
+            if (n === 5) {
+                generarMensajeFinal();
+            }
+
+            // Scroll al top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function puedeNavegarA(n) {
+            // Siempre se puede volver atrás
+            if (n < pasoActual) return true;
+            
+            // Para avanzar, verificar que los pasos anteriores estén completos
+            if (n === 2) return prospecto.capturas.length > 0;
+            if (n === 3) return analisisCompletado;
+            if (n === 4) return calificacionCompletada;
+            if (n === 5) return prospecto.categoria;
+            
+            return true;
+        }
+
+        function actualizarStepper() {
+            for (let i = 1; i <= 5; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('active', 'completed', 'disabled');
+                
+                if (i < pasoActual) {
+                    step.classList.add('completed');
+                } else if (i === pasoActual) {
+                    step.classList.add('active');
+                } else {
+                    // Pasos futuros: verificar si están disponibles
+                    if (puedeNavegarA(i)) {
+                        // Disponible pero no activo
+                    } else {
+                        step.classList.add('disabled');
+                    }
+                }
+            }
+        }
+
+        // MANEJO DE ARCHIVOS
+        async function handleFiles(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            mostrarLoading(`Comprimiendo ${files.length} imágenes...`);
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                document.getElementById('loadingText').textContent = 
+                    `Comprimiendo imagen ${i + 1} de ${files.length}...`;
+
+                const base64Original = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => resolve(ev.target.result);
+                    reader.readAsDataURL(file);
+                });
+
+                const base64Comprimido = await comprimirImagen(base64Original);
+
+                const tipo = prompt(
+                    '¿Qué tipo de captura es?\n\n' +
+                    '1 = Bio\n2 = Post\n3 = Comentario\n4 = Story\n5 = Otra',
+                    '1'
+                );
+                
+                const tipoMap = {'1':'bio','2':'post','3':'comentario','4':'story','5':'otra'};
+                
+                prospecto.capturas.push({
+                    id: crypto.randomUUID(),
+                    tipo: tipoMap[tipo] || 'otra',
+                    imagen: base64Comprimido,
+                    fileName: file.name
+                });
+            }
+
+            renderGaleria();
+            ocultarLoading();
+            document.getElementById('btnSiguiente1').disabled = false;
+            e.target.value = '';
+        }
+
+        async function comprimirImagen(base64, maxWidth = 1024, quality = 0.7) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+                    canvas.width = img.width * ratio;
+                    canvas.height = img.height * ratio;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.src = base64;
+            });
+        }
+
+        function renderGaleria() {
+            const gallery = document.getElementById('gallery');
+            const counter = document.getElementById('galleryCounter');
+            const count = document.getElementById('photoCount');
+            
+            gallery.innerHTML = '';
+            
+            if (prospecto.capturas.length > 0) {
+                counter.classList.remove('hidden');
+                count.textContent = prospecto.capturas.length;
+            } else {
+                counter.classList.add('hidden');
+            }
+
+            prospecto.capturas.forEach((captura, index) => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                item.innerHTML = `
+                    <img src="${captura.imagen}" alt="Captura ${index + 1}">
+                    <div class="tipo-badge">${captura.tipo}</div>
+                    <button class="remove-btn" onclick="eliminarCaptura('${captura.id}')">×</button>
+                `;
+                gallery.appendChild(item);
+            });
+        }
+
+        function eliminarCaptura(id) {
+            prospecto.capturas = prospecto.capturas.filter(c => c.id !== id);
+            renderGaleria();
+            if (prospecto.capturas.length === 0) {
+                document.getElementById('btnSiguiente1').disabled = true;
+            }
+        }
+
+        function limpiarGaleria() {
+            if (confirm('¿Eliminar todas las capturas?')) {
+                prospecto.capturas = [];
+                renderGaleria();
+                document.getElementById('btnSiguiente1').disabled = true;
+            }
+        }
+
+        // ANÁLISIS CON IA
+        async function ejecutarAnalisis() {
+            document.getElementById('loadingAnalisis').classList.remove('hidden');
+            document.getElementById('resultadoAnalisis').classList.add('hidden');
+
+            // SIMULACIÓN DE ANÁLISIS IA
+            await new Promise(r => setTimeout(r, 2000));
+
+            prospecto.analisis = {
+                nombre: 'Carlos Mendoza',
+                pais: 'México',
+                confianzaPais: 'high',
+                edad: '32-38 años',
+                intereses: 'Emprendimiento digital, marketing de afiliados, ingresos pasivos',
+                dolores: 'Ingresos insuficientes, jefe tóxico, falta de tiempo',
+                aspiraciones: 'Libertad financiera, trabajar desde casa, viajar más',
+                actividad: 'Comentó en post sobre emprendimiento mostrando interés genuino',
+                nivelCompromiso: 'Alto - comenta frecuentemente en contenido de negocios',
+                fitNegocio: 'Excelente - perfil compatible con network marketing digital'
+            };
+
+            const perfilHTML = `
+                <div class="profile-field">
+                    <span class="profile-label">👤 Nombre detectado</span>
+                    <span class="profile-value">${prospecto.analisis.nombre}</span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label">🌍 País</span>
+                    <span class="profile-value">${prospecto.analisis.pais} <span class="badge badge-${prospecto.analisis.confianzaPais}">${prospecto.analisis.confianzaPais}</span></span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label">📅 Edad estimada</span>
+                    <span class="profile-value">${prospecto.analisis.edad}</span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label">💼 Intereses</span>
+                    <span class="profile-value">${prospecto.analisis.intereses}</span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label"> Dolores</span>
+                    <span class="profile-value">${prospecto.analisis.dolores}</span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label">✨ Aspiraciones</span>
+                    <span class="profile-value">${prospecto.analisis.aspiraciones}</span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label">🔥 Nivel compromiso</span>
+                    <span class="profile-value">${prospecto.analisis.nivelCompromiso}</span>
+                </div>
+                <div class="profile-field">
+                    <span class="profile-label">✅ Fit con negocio</span>
+                    <span class="profile-value">${prospecto.analisis.fitNegocio}</span>
+                </div>
+            `;
+
+            document.getElementById('perfilExtraido').innerHTML = perfilHTML;
+            document.getElementById('loadingAnalisis').classList.add('hidden');
+            document.getElementById('resultadoAnalisis').classList.remove('hidden');
+            
+            analisisCompletado = true;
+            actualizarStepper();
+        }
+
+        // CALIFICACIÓN
+        function ejecutarCalificacion() {
+            const score = calcularScore();
+            prospecto.calificacion.score = score;
+            
+            document.getElementById('scoreNumero').textContent = `${score}/100`;
+            
+            let nivel = 'low';
+            let color = 'badge-low';
+            if (score >= 80) { nivel = 'high'; color = 'badge-high'; }
+            else if (score >= 60) { nivel = 'medium'; color = 'badge-medium'; }
+            
+            const razones = generarRazonesCalificacion(score);
+            
+            document.getElementById('detalleCalificacion').innerHTML = `
+                <div style="text-align:center; margin-bottom:20px;">
+                    <span class="badge ${color}" style="font-size:14px; padding:6px 16px;">
+                        Nivel ${nivel.toUpperCase()}
+                    </span>
+                </div>
+                <div style="background:white; border-radius:10px; padding:16px;">
+                    <h4 style="margin-bottom:12px; color:#1e293b;">📋 Razones de calificación:</h4>
+                    <ul style="margin-left:20px; line-height:1.8; color:#475569;">
+                        ${razones.map(r => `<li>${r}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            const recomendacion = score >= 70 
+                ? 'Prospecto CALIFICADO. Recomendamos usar "Comentario Atracción" o "DM Inicial" según el contexto.'
+                : 'Prospecto en desarrollo. Usar "Comentario Valor" para construir autoridad primero.';
+            
+            document.getElementById('recomendacionCalificacion').textContent = recomendacion;
+            
+            calificacionCompletada = true;
+            actualizarStepper();
+        }
+
+        function calcularScore() {
+            let score = 50;
+            if (prospecto.analisis.fitNegocio?.includes('Excelente')) score += 30;
+            else if (prospecto.analisis.fitNegocio?.includes('Bueno')) score += 20;
+            if (prospecto.analisis.nivelCompromiso?.includes('Alto')) score += 15;
+            else if (prospecto.analisis.nivelCompromiso?.includes('Medio')) score += 8;
+            if (prospecto.analisis.confianzaPais === 'high') score += 5;
+            return Math.min(score, 100);
+        }
+
+        function generarRazonesCalificacion(score) {
+            const razones = [];
+            if (prospecto.analisis.intereses) {
+                razones.push(`Intereses alineados: ${prospecto.analisis.intereses}`);
+            }
+            if (prospecto.analisis.dolores) {
+                razones.push(`Dolores identificados: ${prospecto.analisis.dolores}`);
+            }
+            if (score >= 70) {
+                razones.push('Alta probabilidad de conversión basada en actividad');
+                razones.push('Perfil compatible con modelo de negocio');
+            } else {
+                razones.push('Requiere más nurturing antes de abordar directamente');
+            }
+            return razones;
+        }
+
+        // SELECCIÓN DE CATEGORÍA
+        function selectCategory(categoria) {
+            prospecto.categoria = categoria;
+            
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+        }
+
+        // GENERAR MENSAJE FINAL
+        function generarMensajeFinal() {
+            versionesGeneradas++;
+            
+            const nombre = prospecto.analisis.nombre?.split(' ')[0] || 'amigo';
+            const intereses = prospecto.analisis.intereses || 'emprendimiento';
+            const dolores = prospecto.analisis.dolores || 'mejorar ingresos';
+            
+            const mensajes = {
+                comentario_atraccion: [
+                    `Justo esto es lo que más me funcionó para resolver ${dolores.split(',')[0]} 👀`,
+                    `Excelente contenido. Lo apliqué y cambié mi situación en 3 meses 🔥`,
+                    `Me identifico 100%. Esto cambió mi perspectiva sobre ${intereses.split(',')[0]}.`,
+                    `Exacto. Por esto es que dejé mi empleo hace 6 meses 👊`
+                ],
+                
+                comentario_valor: [
+                    `Excelente punto. Agregaría que la consistencia los primeros 90 días es clave. Ahí es donde el 95% abandona justo antes de ver resultados.`,
+                    `Muy buen insight. Desde mi experiencia con ${intereses.split(',')[0]}, lo que más marca la diferencia es tener un sistema probado.`,
+                    `Totalmente de acuerdo. Un dato que pocos consideran: el 80% del éxito está en la mentalidad, no en la estrategia.`
+                ],
+                
+                comentario_pregunta: [
+                    `¿Y cómo resolviste el tema de ${dolores.split(',')[0]}?`,
+                    `Interesante. ¿Cuánto tiempo te tomó ver los primeros resultados?`,
+                    `¿Esto lo aplicas también para generar ingresos pasivos?`
+                ],
+                
+                story_reply: [
+                    `¡Qué bueno ver esto! Justo estaba pensando en ${intereses.split(',')[0]} hoy 🔥`,
+                    `Me encanta esta perspectiva. Totalmente alineado con mi experiencia.`,
+                    `Esto es oro puro. Gracias por compartirlo 🙏`
+                ],
+                
+                dm_inicial: [
+                    `Hola ${nombre} 👋\n\nVi que comentaste sobre ${intereses.split(',')[0]}. Me pareció muy interesante tu perspectiva.\n\n¿Hace cuánto estás explorando esto?`,
+                    
+                    `¡Hola ${nombre}!\n\nNoté tu interés en ${intereses.split(',')[0]}.\n\n¿Estás buscando algo específico o solo explorando opciones?`,
+                    
+                    `Hola ${nombre} 👋\n\nVi tu comentario y me resonó mucho. Yo pasé por lo mismo con ${dolores.split(',')[0]}.\n\n¿Te puedo contar cómo lo resolví?`
+                ],
+                
+                dm_respuesta: [
+                    `Me alegra que te haya resonado, ${nombre}.\n\nJusto tengo un recurso gratuito sobre ${intereses.split(',')[0]} que va perfecto con lo que comentas.\n\n¿Te lo comparto?`,
+                    
+                    `Excelente pregunta.\n\nBasado en mi experiencia con ${dolores.split(',')[0]}, hay 3 cosas clave que podrías implementar.\n\n¿Quieres que te las comparta o prefieres una llamada de 15 min?`
+                ]
+            };
+
+            const catMessages = mensajes[prospecto.categoria] || mensajes.comentario_atraccion;
+            const index = (versionesGeneradas - 1) % catMessages.length;
+            
+            prospecto.mensaje = catMessages[index];
+            
+            document.getElementById('nombreProspectoMensaje').textContent = prospecto.analisis.nombre || '--';
+            document.getElementById('mensajeContenido').textContent = prospecto.mensaje;
+        }
+
+        function copiarMensaje() {
+            navigator.clipboard.writeText(prospecto.mensaje).then(() => {
+                const btn = event.currentTarget;
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '✅ ¡Copiado!';
+                btn.style.background = '#22c55e';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '';
+                }, 2000);
+            });
+        }
+
+        function regenerarMensaje() {
+            generarMensajeFinal();
+        }
+
+        function nuevoProspecto() {
+            if (confirm('¿Comenzar con un nuevo prospecto?')) {
+                prospecto = {
+                    id: crypto.randomUUID(),
+                    usuario: '',
+                    capturas: [],
+                    analisis: {},
+                    calificacion: {},
+                    categoria: 'comentario_atraccion',
+                    mensaje: ''
+                };
+                
+                analisisCompletado = false;
+                calificacionCompletada = false;
+                versionesGeneradas = 0;
+                pasoActual = 1;
+                
+                document.getElementById('usuarioIG').value = '';
+                document.getElementById('gallery').innerHTML = '';
+                document.getElementById('galleryCounter').classList.add('hidden');
+                document.getElementById('btnSiguiente1').disabled = true;
+                
+                navegarAPaso(1);
+            }
+        }
+
+        function reiniciarTodo() {
+            if (confirm('¿Reiniciar todo el proceso?')) {
+                nuevoProspecto();
+            }
+        }
+
+        function mostrarLoading(texto) {
+            document.getElementById('loadingText').textContent = texto;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function ocultarLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
