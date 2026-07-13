@@ -1,9 +1,24 @@
-<!DOCTYPE html>
+
+                        <!DOCTYPE html>
+                        <html lang="en">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body {
+                  background-color: white; /* Ensure the iframe has a white background */
+                }
+
+                
+              </style>
+                        </head>
+                        <body>
+                            <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prospector IA - Navegación Completa</title>
+    <title>Prospector IA - Análisis + Atracción</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -35,6 +50,596 @@
             gap: 12px;
         }
         
+        .header p { color: #64748b; font-size: 14px; }
+        
+        .badge-gold {
+            background: linear-gradient(135deg, #d4af37, #f4d03f);
+            color: #1e293b;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
+        
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-x: auto;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            position: relative;
+            padding: 0 8px;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .step.completed:not(:last-child)::after { background: #22c55e; }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-weight: bold;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s;
+        }
+        
+        .step.active .step-circle { 
+            background: linear-gradient(135deg, #d4af37, #f4d03f); 
+            color: #1e293b;
+            transform: scale(1.1);
+        }
+        .step.completed .step-circle { background: #22c55e; }
+        
+        .step-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+        }
+        
+        .step.active .step-label { color: #d4af37; }
+        .step.completed .step-label { color: #22c55e; }
+        
+        .panel {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: none;
+        }
+        
+        .panel.active { display: block; animation: fadeIn 0.4s; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .panel-title {
+            font-size: 20px;
+            color: #1e293b;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .alert-strategy {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-left: 4px solid #d4af37;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .alert-strategy h3 {
+            color: #92400e;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .alert-strategy p {
+            color: #78350f;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #334155;
+            font-size: 13px;
+        }
+        
+        .label-hint {
+            font-weight: normal;
+            color: #94a3b8;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea { min-height: 80px; resize: vertical; }
+        
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #d4af37, #f4d03f); 
+            color: #1e293b;
+        }
+        .btn-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(212,175,55,0.4);
+        }
+        
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-secondary:hover { background: #475569; }
+        
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: space-between;
+        }
+        
+        /* GALERÍA MULTI-FOTO */
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover { 
+            background: #f1f5f9; 
+            border-color: #d4af37;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .gallery-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f0f0f0;
+            aspect-ratio: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .gallery-item .tipo-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(212,175,55,0.95);
+            color: #1e293b;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: 700;
+        }
+        
+        .gallery-item .remove-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(239,68,68,0.95);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .gallery-counter {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #475569;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* RESULTADOS DE ANÁLISIS */
+        .analysis-result {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            display: none;
+        }
+        
+        .analysis-result.show { display: block; animation: slideIn 0.4s; }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .profile-card {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .profile-field {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .profile-field:last-child { border-bottom: none; }
+        
+        .profile-label {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 12px;
+        }
+        
+        .profile-value {
+            color: #1e293b;
+            font-weight: 500;
+            text-align: right;
+            font-size: 13px;
+        }
+        
+        .score-display {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #d4af37, #f4d03f);
+            border-radius: 10px;
+            margin: 16px 0;
+        }
+        
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .score-label {
+            font-size: 14px;
+            color: #78350f;
+            margin-top: 4px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        
+        .badge-high { background: #22c55e; color: white; }
+        .badge-medium { background: #f59e0b; color: white; }
+        .badge-low { background: #ef4444; color: white; }
+        
+        /* CATEGORÍAS DE MENSAJES */
+        .message-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .category-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .category-card.selected {
+            border-color: #d4af37;
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.2);
+        }
+        
+        .category-icon { font-size: 28px; margin-bottom: 8px; }
+        .category-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .category-desc { font-size: 11px; color: #64748b; line-height: 1.4; }
+        
+        .category-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .meta-tag {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            color: #475569;
+            font-weight: 600;
+        }
+        
+        /* MENSAJE FINAL */
+        .message-final {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 2px solid #d4af37;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            display: none;
+        }
+        
+        .message-final.show { display: block; }
+        
+        .message-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 14px;
+            color: #1e293b;
+            border-left: 4px solid #d4af37;
+            margin: 16px 0;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: #d4af37;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span style="background:#d4af37; color:#1e293b; padding:4px 12px; border-radius:8px;">P</span>
+                Prospecto IA
+                <span class="badge-gold">ANÁLISIS + ATRACCIÓN</span>
+            </h1>
+            <p>Analiza capturas → Califica → Genera mensajes de atracción</p>
+        </div>
+
+        <div class="stepper">
+            <div class="step active" id="step1-indicator">
+                <div class="step-circle">1</div>
+                <div class="step-label">Capturas</div>
+            </div>
+            <div class="step" id="step2-indicator">
+                <div class="step-circle">2</div>
+                <div class="step-label">Análisis IA</div>
+            </div>
+            <div class="step" id="step3-indicator">
+                <div class="step-circle">3</div>
+                <div class="step-label">Calificación</div>
+            </div>
+            <div class="step" id="step4-indicator">
+                <div class="step-circle">4</div>
+                <div class="step-label">Categoría</div>
+            </div>
+            <div class="step" id="step5-indicator">
+                <div class="step-circle">5</div>
+                <div class="step-label">Mensaje</div>
+            </div>
+        </div>
+
+        <!-- PANEL 1: CAPTURAS -->
+        <div class="panel active" id="panel1">
+            <div class="alert-strategy">
+                <h3>📸 Sube capturas del prospecto</h3>
+                <p>
+                    Bio, posts, comentarios, stories. Entre más información, mejor será el análisis y más personalizado el mensaje.
+                    <strong>Recomendado: 3-6 capturas</strong>
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>Usuario de Instagram <span class="label-hint">(sin @)</span></label>
+                <input type="text" id="usuarioIG" placeholder="nombre_usuario">
+            </div>
+
+            <div class="form-group">
+                <label>Subir capturas <span class="label-hint">(múltiples imágenes)</span></label>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <p style="font-size: 48px; margin-bottom: 12px;">📷</p>
+                    <p><strong>Clic para subir imágenes</strong></p>
+                    <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Se comprimirán automáticamente</p>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+            </div>
+
+            <div class="gallery-counter hidden" id="galleryCounter">
+                <span><strong id="photoCount">0</strong> capturas cargadas</span>
+                <button class="btn btn-secondary" style="padding:6px 12px; font-size:11px;" onclick="limpiarGaleria()">️ Limpiar</button>
+            </div>
+
+            <div class="gallery" id="gallery"></div>
+
+            <div class="btn-group">
+                <div></div>
+                <button class="btn btn-primary" onclick="irAPaso(2)" id="btnAnalizar" disabled>
+                    🔍 Analizar con IA →
+                </button>
+            </div>
+        </div>
+
+        <!-- PANEL 2: ANÁLISIS IA -->
+        <div class="panel" id="panel2">
+            <h2 class="panel-title">
+                <span class="panel-number">2</span>
+                Análisis Automático con IA
+            </h2>
+
+            <div id="loadingAnalisis" class="hidden" style="text-align:center; padding:40px;">
+                <div class="loading-spinner" style="margin:0 auto 20px;"></div>
+                <p style="color:#64748b;">Analizando capturas con IA de visión...</p>
+                <p style="font-size:12px; color:#94a3b8; margin-top:8px;">Extrayendo: nombre, país, intereses, dolores, aspiraciones</p>
+            </div>
+
+            <div id="resultadoAnalisis" class="analysis-result">
+                <h3 style="color:#15803d; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                    <span>✅</span> Perfil Extraído
+                </h3>
+                
+                <div class="profile-card" id="perfilExtraido">
+                    <!-- Se llena dinámicamente -->
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="irAPaso(1)">← Atrás</button>
+                    <button class="btn btn-success" onclick="irAPaso(3)">
+                        Calificar Prospecto →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL 3: CALIFICACIÓN -->
+        <div class="panel" id="panel3">
+            <h2 class="panel-title">
+                <span class="panel-number">3</span>
+                Calificación del Prospecto
+            </h2>
+
+            <div class="score-display">
+                <div class="score-number" id="scoreNumero">--</div>
+                <div class="score-label">Puntaje de Calificación</div>
+            </div>
+
+            <div id="detalleCalificacion" style="margin:20px 0;">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+            <div class="alert-strategy" style="background:#f0f9ff; border-left-color:#0ea5e9;">
+                <h3 style="color:#0369a1;">💡 Recomendación</h3>
+                <p id="recomendacionCalificacion">
+                    Basado en el análisis, te recomendamos usar la categoría de mensaje que mejor se adapte.
+                </p>
+               
         .header p { color: #64748b; font-size: 14px; }
         
         .badge-gold {
