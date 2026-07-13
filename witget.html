@@ -3,38 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protocolo Ruta Diamante - Widget de Prospección</title>
+    <title>Widget de Notas</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
+            margin: 0;
             padding: 20px;
-            color: #333;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .header {
-            background: white;
-            padding: 24px;
+        .widget-card {
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 16px;
-            margin-bottom: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 350px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        
-        .header h1 {
-            color: #667eea;
-            font-size: 28px;
-            margin-bottom: 8px;
+        h2 { margin: 0 0 16px 0; color: #333; font-size: 1.25rem; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 16px; }
+        input {
+            flex: 1; padding: 10px; border: 1px solid #ddd; 
+            border-radius: 8px; font-size: 14px; outline: none;
         }
+        input:focus { border-color: #2a5298; }
+        button {
+            padding: 10px 16px; background: #2a5298; color: white; 
+            border: none; border-radius: 8px; cursor: pointer; 
+            font-weight: bold; transition: background 0.2s;
+        }
+        button:hover { background: #1e3c72; }
+        ul { list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto; }
+        li {
+            background: #f8f9fa; padding: 12px; margin-bottom: 8px; 
+            border-radius: 8px; display: flex; justify-content: space-between; 
+            align-items: center; font-size: 14px; color: #444;
+            animation: fadeIn 0.3s ease;
+        }
+        .delete-btn {
+            background: transparent; color: #ff4757; padding: 4px 8px; 
+            font-size: 18px; line-height: 1;
+        }
+        .delete-btn:hover { background: #ffe0e3; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="widget-card">
+    <h2>📝 Mis Notas Rápidas</h2>
+    <div class="input-group">
+        <input type="text" id="noteInput" placeholder="Escribe una nota...">
+        <button onclick="addNote()">+</button>
+    </div>
+    <ul id="noteList"></ul>
+</div>
+
+<script>
+    const noteInput = document.getElementById('noteInput');
+    const noteList = document.getElementById('noteList');
+
+    // Cargar notas al iniciar
+    document.addEventListener('DOMContentLoaded', loadNotes);
+
+    noteInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addNote();
+    });
+
+    function addNote() {
+        const text = noteInput.value.trim();
+        if (!text) return;
+
+        let notes = JSON.parse(localStorage.getItem('githubWidgetNotes')) || [];
+        notes.push(text);
+        localStorage.setItem('githubWidgetNotes', JSON.stringify(notes));
         
-        .header p {
+        noteInput.value = '';
+        renderNotes();
+    }
+
+    function deleteNote(index) {
+        let notes = JSON.parse(localStorage.getItem('githubWidgetNotes')) || [];
+        notes.splice(index, 1);
+        localStorage.setItem('githubWidgetNotes', JSON.stringify(notes));
+        renderNotes();
+    }
+
+    function renderNotes() {
+        const notes = JSON.parse(localStorage.getItem('githubWidgetNotes')) || [];
+        noteList.innerHTML = '';
+        notes.forEach((note, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${note}</span><button class="delete-btn" onclick="deleteNote(${index})">×</button>`;
+            noteList.appendChild(li);
+        });
+    }
+
+    function loadNotes() {
+        renderNotes();
+    }
+</script>
+
+</body>
+</html>        .header p {
             color: #666;
             font-size: 14px;
         }
