@@ -166,12 +166,39 @@
             border-style: solid;
             padding: 20px;
         }
-        
-        .preview-img {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 8px;
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 10px;
             margin-top: 16px;
+        }
+
+        .preview-item {
+            position: relative;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            cursor: pointer;
+            line-height: 1;
         }
         
         .grid-2 {
@@ -318,6 +345,17 @@
         .hidden {
             display: none;
         }
+
+        .captura-tipo-tag {
+            display: inline-block;
+            background: #e7e9ff;
+            color: #4c51bf;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px 4px 2px 0;
+        }
     </style>
 </head>
 <body>
@@ -340,27 +378,18 @@
             <h2 style="margin-bottom: 20px;">Captura de Prospectos</h2>
             
             <div class="alert alert-info">
-                <strong>Instrucciones:</strong> Sube capturas de comentarios de influencers o bios de prospectos. Qwen analizará la imagen y extraerá la información automáticamente.
+                <strong>Instrucciones:</strong> Sube una o varias capturas del mismo prospecto (comentarios, bio, posts). Gemma analiza todas juntas, detecta por su cuenta de qué tipo es cada una, y combina la mejor información posible para alimentar los mensajes de Mistral.
             </div>
 
             <div class="form-group">
-                <label>Tipo de Captura</label>
-                <select id="tipoCaptura">
-                    <option value="comentario">Comentario en Post de Influencer</option>
-                    <option value="bio">Bio de Perfil</option>
-                    <option value="post">Post de Prospecto</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Subir Captura</label>
+                <label>Subir Capturas (puedes seleccionar varias a la vez)</label>
                 <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
                     <p style="font-size: 48px; margin-bottom: 12px;">📷</p>
-                    <p><strong>Haz clic para subir imagen</strong></p>
-                    <p style="font-size: 12px; color: #666; margin-top: 8px;">JPG, PNG hasta 5MB</p>
-                    <img id="previewImg" class="preview-img hidden">
+                    <p><strong>Haz clic para subir imágenes</strong></p>
+                    <p style="font-size: 12px; color: #666; margin-top: 8px;">JPG, PNG — puedes elegir varias a la vez</p>
+                    <div id="previewGrid" class="preview-grid"></div>
                 </div>
-                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
             </div>
 
             <div class="form-group">
@@ -368,7 +397,7 @@
                 <textarea id="notasCaptura" placeholder="Contexto adicional sobre el prospecto..."></textarea>
             </div>
 
-            <button class="btn" onclick="procesarCaptura(event)">🤖 Procesar con Qwen</button>
+            <button class="btn" onclick="procesarCaptura(event)">🤖 Procesar con Gemma</button>
 
             <div id="resultadoCaptura" class="hidden" style="margin-top: 24px;">
                 <div class="result-box">
@@ -472,10 +501,10 @@
                 <h3 style="margin-bottom: 16px;">🔑 API Keys</h3>
 
                 <div class="form-group">
-                    <label>Qwen API Key (vía OpenRouter, tiene capa gratuita) — usada para analizar imágenes</label>
+                    <label>OpenRouter API Key — usada para Gemma (analizar capturas)</label>
                     <div class="api-key-group">
-                        <input type="password" id="apiKeyQwen" placeholder="sk-or-v1-...">
-                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyQwen')">👁️</button>
+                        <input type="password" id="apiKeyGemma" placeholder="sk-or-v1-...">
+                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyGemma')">👁️</button>
                     </div>
                 </div>
 
@@ -537,7 +566,7 @@
 
     <script>
         // Estado global
-        let currentImageData = null;
+        let currentImages = []; // array de dataURLs base64
         let prospectoActual = null;
         let mensajeActual = null;
 
@@ -557,44 +586,71 @@
             document.getElementById(tabName).classList.add('active');
         }
 
-        // Upload de imágenes
+        // Upload de imágenes (múltiples)
         function setupFileUpload() {
             const fileInput = document.getElementById('fileInput');
-            const uploadArea = document.getElementById('uploadArea');
-            const previewImg = document.getElementById('previewImg');
 
             fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
+                const files = Array.from(e.target.files);
+                let pendientes = files.length;
+
+                files.forEach((file) => {
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                        currentImageData = event.target.result;
-                        previewImg.src = currentImageData;
-                        previewImg.classList.remove('hidden');
-                        uploadArea.classList.add('has-image');
+                        currentImages.push(event.target.result);
+                        renderPreviews();
                     };
                     reader.readAsDataURL(file);
-                }
+                });
+
+                // Permite volver a seleccionar el mismo archivo si se borra y se re-sube
+                fileInput.value = '';
             });
+        }
+
+        function renderPreviews() {
+            const grid = document.getElementById('previewGrid');
+            const uploadArea = document.getElementById('uploadArea');
+            grid.innerHTML = currentImages.map((img, idx) => `
+                <div class="preview-item">
+                    <img src="${img}">
+                    <button class="remove-btn" onclick="event.stopPropagation(); quitarImagen(${idx})">✕</button>
+                </div>
+            `).join('');
+            uploadArea.classList.toggle('has-image', currentImages.length > 0);
+        }
+
+        function quitarImagen(idx) {
+            currentImages.splice(idx, 1);
+            renderPreviews();
         }
 
         // ===== Llamadas reales a las APIs =====
 
-        // Qwen (vía OpenRouter) analiza la imagen y extrae info estructurada
-        async function callQwenVision(imageBase64, tipoCaptura, notas) {
-            const apiKey = getApiKey('qwen');
-            if (!apiKey) throw new Error('Configura tu API key de Qwen en la sección de Configuración');
+        // Gemma (vía OpenRouter) analiza una o varias imágenes juntas, detecta el tipo
+        // de cada una (comentario, bio, post) y sintetiza la mejor info del prospecto.
+        async function callGemmaVision(imagenes, notas) {
+            const apiKey = getApiKey('gemma');
+            if (!apiKey) throw new Error('Configura tu OpenRouter API key en la sección de Configuración');
 
-            const promptTexto = `Analiza esta captura de pantalla de Instagram (tipo: ${tipoCaptura}). Extrae la información y responde SOLO con un objeto JSON válido, sin texto adicional ni markdown, con esta estructura exacta:
+            const promptTexto = `Vas a recibir ${imagenes.length} captura(s) de pantalla de Instagram del MISMO prospecto. Pueden ser comentarios en posts de influencers, bios de perfil, o posts propios — determina tú mismo de qué tipo es cada una, no asumas que todas son iguales.
+
+Analiza todas las capturas EN CONJUNTO como si fueran piezas del mismo rompecabezas, y responde SOLO con un objeto JSON válido, sin texto adicional ni markdown, con esta estructura exacta:
 {
   "nombre": "nombre del prospecto o 'No detectado'",
-  "pais": "país detectado o inferido a partir de bio, emojis, ciudad o hashtags",
+  "pais": "país detectado o inferido a partir de bio, emojis, ciudad o hashtags en cualquiera de las capturas",
   "confianza": "high, medium o low, según qué tan seguro estás del país detectado",
-  "intereses": "intereses o temas que menciona el prospecto",
-  "actividad": "qué hizo (comentario, bio, post) y de qué trata",
-  "infoCompleta": "resumen de 2 a 3 líneas con contexto útil para personalizar un mensaje de acercamiento"
+  "tiposDetectados": ["lista de los tipos detectados, uno por imagen, en el mismo orden: comentario, bio o post"],
+  "intereses": "intereses o temas que menciona el prospecto, combinando todas las capturas",
+  "actividad": "resumen de qué mostraba cada captura y qué revela sobre el prospecto",
+  "infoCompleta": "resumen de 3 a 4 líneas combinando TODA la información relevante y más útil de todas las capturas juntas, listo para personalizar un mensaje de acercamiento"
 }
 Notas adicionales del usuario: ${notas || 'ninguna'}`;
+
+            const contenido = [{ type: 'text', text: promptTexto }];
+            imagenes.forEach(img => {
+                contenido.push({ type: 'image_url', image_url: { url: img } });
+            });
 
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
@@ -603,21 +659,15 @@ Notas adicionales del usuario: ${notas || 'ninguna'}`;
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'qwen/qwen2.5-vl-32b-instruct:free',
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: promptTexto },
-                            { type: 'image_url', image_url: { url: imageBase64 } }
-                        ]
-                    }],
+                    model: 'google/gemma-4-31b-it:free',
+                    messages: [{ role: 'user', content: contenido }],
                     temperature: 0.3
                 })
             });
 
             if (!response.ok) {
                 const errText = await response.text();
-                throw new Error(`Error Qwen (${response.status}): ${errText.substring(0, 200)}`);
+                throw new Error(`Error Gemma (${response.status}): ${errText.substring(0, 200)}`);
             }
 
             const data = await response.json();
@@ -666,14 +716,13 @@ Notas adicionales del usuario: ${notas || 'ninguna'}`;
             return config.landingPageUrl || '[tu link de landing page]';
         }
 
-        // ===== Procesar captura con Qwen =====
+        // ===== Procesar capturas con Gemma =====
         async function procesarCaptura(event) {
-            if (!currentImageData) {
-                alert('Por favor sube una imagen primero');
+            if (currentImages.length === 0) {
+                alert('Por favor sube al menos una imagen');
                 return;
             }
 
-            const tipoCaptura = document.getElementById('tipoCaptura').value;
             const notas = document.getElementById('notasCaptura').value;
             const boton = event.currentTarget;
             const textoOriginal = boton.textContent;
@@ -681,13 +730,19 @@ Notas adicionales del usuario: ${notas || 'ninguna'}`;
             boton.innerHTML = '<span class="loading"></span>Procesando...';
 
             try {
-                const resultado = await callQwenVision(currentImageData, tipoCaptura, notas);
+                const resultado = await callGemmaVision(currentImages, notas);
+
+                const tags = (resultado.tiposDetectados || [])
+                    .map(t => `<span class="captura-tipo-tag">${t}</span>`)
+                    .join('');
 
                 document.getElementById('contenidoExtraido').innerHTML = `
                     <p><strong>Nombre detectado:</strong> ${resultado.nombre}</p>
                     <p><strong>País:</strong> ${resultado.pais} <span class="badge badge-${resultado.confianza}">${resultado.confianza}</span></p>
-                    <p><strong>Intereses:</strong> ${resultado.intereses}</p>
+                    <p style="margin-top: 8px;"><strong>Tipos detectados:</strong><br>${tags}</p>
+                    <p style="margin-top: 8px;"><strong>Intereses:</strong> ${resultado.intereses}</p>
                     <p><strong>Actividad reciente:</strong> ${resultado.actividad}</p>
+                    <p style="margin-top: 8px;"><strong>Resumen combinado:</strong> ${resultado.infoCompleta}</p>
                 `;
 
                 document.getElementById('resultadoCaptura').classList.remove('hidden');
@@ -887,7 +942,7 @@ Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionale
         function guardarConfiguracion() {
             const config = {
                 apiKeys: {
-                    qwen: document.getElementById('apiKeyQwen').value,
+                    gemma: document.getElementById('apiKeyGemma').value,
                     mistral: document.getElementById('apiKeyMistral').value
                 },
                 landingPageUrl: document.getElementById('landingPageUrl').value,
@@ -905,7 +960,7 @@ Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionale
             const config = JSON.parse(localStorage.getItem('rutaDiamanteConfig') || '{}');
 
             if (config.apiKeys) {
-                document.getElementById('apiKeyQwen').value = config.apiKeys.qwen || '';
+                document.getElementById('apiKeyGemma').value = config.apiKeys.gemma || '';
                 document.getElementById('apiKeyMistral').value = config.apiKeys.mistral || '';
             }
 
