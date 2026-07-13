@@ -582,4 +582,378 @@
 
         // Qwen (vía OpenRouter) analiza la imagen y extrae info estructurada
         async function callQwenVision(imageBase64, tipoCaptura, notas) {
-            const apiKey =
+            const apiKey = getApiKey('qwen');
+            if (!apiKey) throw new Error('Configura tu API key de Qwen en la sección de Configuración');
+
+            const promptTexto = `Analiza esta captura de pantalla de Instagram (tipo: ${tipoCaptura}). Extrae la información y responde SOLO con un objeto JSON válido, sin texto adicional ni markdown, con esta estructura exacta:
+{
+  "nombre": "nombre del prospecto o 'No detectado'",
+  "pais": "país detectado o inferido a partir de bio, emojis, ciudad o hashtags",
+  "confianza": "high, medium o low, según qué tan seguro estás del país detectado",
+  "intereses": "intereses o temas que menciona el prospecto",
+  "actividad": "qué hizo (comentario, bio, post) y de qué trata",
+  "infoCompleta": "resumen de 2 a 3 líneas con contexto útil para personalizar un mensaje de acercamiento"
+}
+Notas adicionales del usuario: ${notas || 'ninguna'}`;
+
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'qwen/qwen2.5-vl-32b-instruct:free',
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: promptTexto },
+                            { type: 'image_url', image_url: { url: imageBase64 } }
+                        ]
+                    }],
+                    temperature: 0.3
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Error Qwen (${response.status}): ${errText.substring(0, 200)}`);
+            }
+
+            const data = await response.json();
+            return parsearJSON(data.choices[0].message.content);
+        }
+
+        // Mistral genera texto (calificación o mensajes)
+        async function callMistral(promptTexto) {
+            const apiKey = getApiKey('mistral');
+            if (!apiKey) throw new Error('Configura tu API key de Mistral en la sección de Configuración');
+
+            const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'mistral-large-latest',
+                    messages: [{ role: 'user', content: promptTexto }],
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Error Mistral (${response.status}): ${errText.substring(0, 200)}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        // Limpia y parsea respuestas JSON de la IA (por si vienen con ```json)
+        function parsearJSON(texto) {
+            const limpio = texto.replace(/```json/gi, '').replace(/```/g, '').trim();
+            try {
+                return JSON.parse(limpio);
+            } catch (e) {
+                throw new Error('No se pudo interpretar la respuesta de la IA: ' + limpio.substring(0, 200));
+            }
+        }
+
+        function getLandingUrl() {
+            const config = JSON.parse(localStorage.getItem('rutaDiamanteConfig') || '{}');
+            return config.landingPageUrl || '[tu link de landing page]';
+        }
+
+        // ===== Procesar captura con Qwen =====
+        async function procesarCaptura(event) {
+            if (!currentImageData) {
+                alert('Por favor sube una imagen primero');
+                return;
+            }
+
+            const tipoCaptura = document.getElementById('tipoCaptura').value;
+            const notas = document.getElementById('notasCaptura').value;
+            const boton = event.currentTarget;
+            const textoOriginal = boton.textContent;
+            boton.disabled = true;
+            boton.innerHTML = '<span class="loading"></span>Procesando...';
+
+            try {
+                const resultado = await callQwenVision(currentImageData, tipoCaptura, notas);
+
+                document.getElementById('contenidoExtraido').innerHTML = `
+                    <p><strong>Nombre detectado:</strong> ${resultado.nombre}</p>
+                    <p><strong>País:</strong> ${resultado.pais} <span class="badge badge-${resultado.confianza}">${resultado.confianza}</span></p>
+                    <p><strong>Intereses:</strong> ${resultado.intereses}</p>
+                    <p><strong>Actividad reciente:</strong> ${resultado.actividad}</p>
+                `;
+
+                document.getElementById('resultadoCaptura').classList.remove('hidden');
+
+                prospectoActual = {
+                    nombre: resultado.nombre,
+                    pais: resultado.pais,
+                    info: resultado.infoCompleta,
+                    fecha: new Date().toISOString()
+                };
+
+                incrementarStat('captura');
+            } catch (error) {
+                alert('❌ ' + error.message);
+                console.error(error);
+            } finally {
+                boton.disabled = false;
+                boton.textContent = textoOriginal;
+            }
+        }
+
+        // ===== Calificar prospecto con Mistral =====
+        async function calificarProspecto(event) {
+            const nombre = document.getElementById('nombreProspecto').value;
+            const info = document.getElementById('infoProspecto').value;
+            const pais = document.getElementById('paisProspecto').value;
+
+            if (!nombre || !info) {
+                alert('Por favor completa nombre e información del prospecto');
+                return;
+            }
+
+            const boton = event.currentTarget;
+            const textoOriginal = boton.textContent;
+            boton.disabled = true;
+            boton.innerHTML = '<span class="loading"></span>Calificando...';
+
+            try {
+                const landingUrl = getLandingUrl();
+                const prompt = `Eres un asistente de prospección profesional en Instagram para un negocio de desarrollo de activos financieros (no menciones nombres de empresas ni lenguaje de marketing multinivel).
+Analiza este prospecto y responde SOLO con un objeto JSON válido, sin texto adicional, con esta estructura:
+{
+  "score": (número entero 0-100 según el potencial real de interés en emprender o generar ingresos adicionales),
+  "confianza": "high, medium o low",
+  "mensaje": "mensaje corto y natural de acercamiento en español, tono profesional y cercano, personalizado con el nombre y el contexto del prospecto, que invite a conocer más sin sonar a venta directa, mencionando de forma sutil que hay más información en ${landingUrl}"
+}
+
+Prospecto: ${nombre}
+País: ${pais || 'no especificado'}
+Información: ${info}`;
+
+                const resultado = parsearJSON(await callMistral(prompt));
+
+                document.getElementById('scoreDisplay').textContent = `${resultado.score}/100`;
+                document.getElementById('nivelConfianza').innerHTML = `
+                    <span class="badge badge-${resultado.confianza}">Confianza ${resultado.confianza}</span>
+                `;
+                document.getElementById('mensajeGenerado').innerHTML = `
+                    <h4 style="margin-bottom: 8px;">💬 Mensaje Sugerido:</h4>
+                    <p>${resultado.mensaje}</p>
+                `;
+
+                document.getElementById('resultadoCalificacion').classList.remove('hidden');
+
+                prospectoActual = {
+                    ...prospectoActual,
+                    nombre,
+                    pais,
+                    info,
+                    score: resultado.score,
+                    confianza: resultado.confianza,
+                    mensaje: resultado.mensaje
+                };
+            } catch (error) {
+                alert('❌ ' + error.message);
+                console.error(error);
+            } finally {
+                boton.disabled = false;
+                boton.textContent = textoOriginal;
+            }
+        }
+
+        // ===== Generar mensaje de pipeline con Mistral =====
+        async function generarMensaje(event) {
+            const contexto = document.getElementById('contextoMensaje').value;
+            const tipo = document.getElementById('tipoMensaje').value;
+
+            if (!contexto) {
+                alert('Por favor proporciona contexto del prospecto');
+                return;
+            }
+
+            const boton = event.currentTarget;
+            const textoOriginal = boton.textContent;
+            boton.disabled = true;
+            boton.innerHTML = '<span class="loading"></span>Generando...';
+
+            try {
+                const landingUrl = getLandingUrl();
+                const instrucciones = {
+                    atraccion: `Escribe un mensaje corto y natural de primer contacto en Instagram para atraer al prospecto a conocer más sobre desarrollo de activos financieros, sin sonar a venta directa ni mencionar nombres de empresas. Termina invitando a ver más información en ${landingUrl} de forma sutil.`,
+                    seguimiento: `Escribe un mensaje breve de seguimiento para alguien que ya recibió un primer mensaje pero no ha respondido. Tono cercano, sin presionar, recordando el link ${landingUrl}.`,
+                    cierre: `Escribe un mensaje para agendar una llamada de cierre de 20 minutos con un prospecto interesado, invitándolo a agendar y a completar sus datos en ${landingUrl}.`
+                };
+
+                const prompt = `Eres un asistente de prospección profesional en Instagram para un negocio de desarrollo de activos financieros. ${instrucciones[tipo]}
+Contexto del prospecto: ${contexto}
+Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionales.`;
+
+                mensajeActual = (await callMistral(prompt)).trim();
+                document.getElementById('contenidoMensaje').textContent = mensajeActual;
+                document.getElementById('resultadoMensaje').classList.remove('hidden');
+            } catch (error) {
+                alert('❌ ' + error.message);
+                console.error(error);
+            } finally {
+                boton.disabled = false;
+                boton.textContent = textoOriginal;
+            }
+        }
+
+        // Copiar mensaje
+        function copiarMensaje() {
+            navigator.clipboard.writeText(mensajeActual).then(() => {
+                alert('✅ Mensaje copiado al portapapeles');
+            });
+        }
+
+        // Guardar calificación
+        async function guardarCalificacion() {
+            if (!prospectoActual) return;
+
+            await enviarAWebhook('calificacion', prospectoActual);
+            incrementarStat('calificacion', prospectoActual.score);
+            alert('✅ Prospecto guardado en CRM');
+        }
+
+        // Guardar mensaje
+        async function guardarMensaje() {
+            if (!mensajeActual) return;
+
+            await enviarAWebhook('pipeline', {
+                mensaje: mensajeActual,
+                prospecto: prospectoActual,
+                fecha: new Date().toISOString()
+            });
+            incrementarStat('mensaje');
+            alert('✅ Mensaje guardado en Pipeline');
+        }
+
+        // Enviar a webhook de Make.com
+        async function enviarAWebhook(tipo, data) {
+            const webhookUrl = tipo === 'calificacion'
+                ? document.getElementById('webhookCalificacion').value
+                : document.getElementById('webhookPipeline').value;
+
+            if (!webhookUrl) {
+                console.log('Webhook no configurado, datos:', data);
+                return;
+            }
+
+            try {
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tipo: tipo,
+                        ...data
+                    })
+                });
+            } catch (error) {
+                console.error('Error enviando a webhook:', error);
+            }
+        }
+
+        // Enviar a calificación desde captura
+        function enviarACalificacion() {
+            if (!prospectoActual) return;
+
+            document.getElementById('nombreProspecto').value = prospectoActual.nombre;
+            document.getElementById('paisProspecto').value = prospectoActual.pais;
+            document.getElementById('infoProspecto').value = prospectoActual.info;
+
+            document.querySelectorAll('.tab')[1].click();
+        }
+
+        // Enviar a pipeline desde captura
+        function enviarAPipeline() {
+            if (!prospectoActual) return;
+
+            document.getElementById('contextoMensaje').value = prospectoActual.info;
+
+            document.querySelectorAll('.tab')[2].click();
+        }
+
+        // Configuración
+        function guardarConfiguracion() {
+            const config = {
+                apiKeys: {
+                    qwen: document.getElementById('apiKeyQwen').value,
+                    mistral: document.getElementById('apiKeyMistral').value
+                },
+                landingPageUrl: document.getElementById('landingPageUrl').value,
+                webhooks: {
+                    calificacion: document.getElementById('webhookCalificacion').value,
+                    pipeline: document.getElementById('webhookPipeline').value
+                }
+            };
+
+            localStorage.setItem('rutaDiamanteConfig', JSON.stringify(config));
+            alert('✅ Configuración guardada');
+        }
+
+        function cargarConfiguracion() {
+            const config = JSON.parse(localStorage.getItem('rutaDiamanteConfig') || '{}');
+
+            if (config.apiKeys) {
+                document.getElementById('apiKeyQwen').value = config.apiKeys.qwen || '';
+                document.getElementById('apiKeyMistral').value = config.apiKeys.mistral || '';
+            }
+
+            document.getElementById('landingPageUrl').value = config.landingPageUrl || '';
+
+            if (config.webhooks) {
+                document.getElementById('webhookCalificacion').value = config.webhooks.calificacion || '';
+                document.getElementById('webhookPipeline').value = config.webhooks.pipeline || '';
+            }
+        }
+
+        function getApiKey(provider) {
+            const config = JSON.parse(localStorage.getItem('rutaDiamanteConfig') || '{}');
+            return config.apiKeys ? config.apiKeys[provider] : '';
+        }
+
+        function toggleVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        // Estadísticas
+        function actualizarEstadisticas() {
+            const stats = JSON.parse(localStorage.getItem('rutaDiamanteStats') || '{"capturas":0,"calificados":0,"mensajes":0,"scores":[]}');
+
+            document.getElementById('statCapturas').textContent = stats.capturas;
+            document.getElementById('statCalificados').textContent = stats.calificados;
+            document.getElementById('statMensajes').textContent = stats.mensajes;
+
+            const promedio = stats.scores.length > 0
+                ? Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length)
+                : 0;
+            document.getElementById('statPromedio').textContent = promedio;
+        }
+
+        function incrementarStat(tipo, valor = null) {
+            const stats = JSON.parse(localStorage.getItem('rutaDiamanteStats') || '{"capturas":0,"calificados":0,"mensajes":0,"scores":[]}');
+
+            if (tipo === 'captura') stats.capturas++;
+            if (tipo === 'calificacion') {
+                stats.calificados++;
+                if (valor !== null) stats.scores.push(valor);
+            }
+            if (tipo === 'mensaje') stats.mensajes++;
+
+            localStorage.setItem('rutaDiamanteStats', JSON.stringify(stats));
+            actualizarEstadisticas();
+        }
+    </script>
+</body>
+</html>
