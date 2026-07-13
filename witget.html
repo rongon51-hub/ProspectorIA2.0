@@ -3,38 +3,573 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget de Notas</title>
+    <title>Protocolo Ruta Diamante - Widget de Prospección</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            margin: 0;
             padding: 20px;
+            color: #333;
         }
-        .widget-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
             padding: 24px;
-            width: 100%;
-            max-width: 350px;
+            border-radius: 16px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        h2 { margin: 0 0 16px 0; color: #333; font-size: 1.25rem; }
-        .input-group { display: flex; gap: 8px; margin-bottom: 16px; }
-        input {
-            flex: 1; padding: 10px; border: 1px solid #ddd; 
-            border-radius: 8px; font-size: 14px; outline: none;
+        
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 8px;
         }
-        input:focus { border-color: #2a5298; }
-        button {
-            padding: 10px 16px; background: #2a5298; color: white; 
-            border: none; border-radius: 8px; cursor: pointer; 
-            font-weight: bold; transition: background 0.2s;
+        
+        .header p {
+            color: #666;
+            font-size: 14px;
         }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: #666;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+        }
+        
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+            font-size: 14px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+        
+        .upload-area:hover {
+            background: #f0f2ff;
+            border-color: #5568d3;
+        }
+        
+        .upload-area.has-image {
+            border-style: solid;
+            padding: 20px;
+        }
+        
+        .preview-img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .result-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        
+        .result-box h3 {
+            color: #667eea;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .badge-high {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .score-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-group {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .api-key-group input {
+            flex: 1;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💎 Protocolo Ruta Diamante</h1>
+            <p>Sistema de prospección Instagram con IA - 20 min/día a $0</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('captura')">📸 Captura</button>
+            <button class="tab" onclick="switchTab('calificacion')">⭐ Calificación</button>
+            <button class="tab" onclick="switchTab('pipeline')">🚀 Pipeline 20M</button>
+            <button class="tab" onclick="switchTab('config')">⚙️ Configuración</button>
+            <button class="tab" onclick="switchTab('stats')">📊 Estadísticas</button>
+        </div>
+
+        <!-- TAB CAPTURA -->
+        <div id="captura" class="tab-content active">
+            <h2 style="margin-bottom: 20px;">Captura de Prospectos</h2>
+            
+            <div class="alert alert-info">
+                <strong>Instrucciones:</strong> Sube capturas de comentarios de influencers o bios de prospectos. La IA extraerá información automáticamente.
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Captura</label>
+                <select id="tipoCaptura">
+                    <option value="comentario">Comentario en Post de Influencer</option>
+                    <option value="bio">Bio de Perfil</option>
+                    <option value="post">Post de Prospecto</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Subir Captura</label>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <p style="font-size: 48px; margin-bottom: 12px;">📷</p>
+                    <p><strong>Haz clic para subir imagen</strong></p>
+                    <p style="font-size: 12px; color: #666; margin-top: 8px;">JPG, PNG hasta 5MB</p>
+                    <img id="previewImg" class="preview-img hidden">
+                </div>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="form-group">
+                <label>Notas adicionales (opcional)</label>
+                <textarea id="notasCaptura" placeholder="Contexto adicional sobre el prospecto..."></textarea>
+            </div>
+
+            <button class="btn" onclick="procesarCaptura()">🤖 Procesar con IA</button>
+
+            <div id="resultadoCaptura" class="hidden" style="margin-top: 24px;">
+                <div class="result-box">
+                    <h3>📋 Información Extraída</h3>
+                    <div id="contenidoExtraido"></div>
+                </div>
+                <div style="margin-top: 16px; display: flex; gap: 12px;">
+                    <button class="btn btn-success" onclick="enviarACalificacion()">⭐ Enviar a Calificación</button>
+                    <button class="btn btn-secondary" onclick="enviarAPipeline()">🚀 Enviar a Pipeline 20M</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB CALIFICACIÓN -->
+        <div id="calificacion" class="tab-content">
+            <h2 style="margin-bottom: 20px;">Calificación de Prospectos</h2>
+            
+            <div class="alert alert-info">
+                <strong>Objetivo:</strong> Evaluar el potencial del prospecto y generar mensaje personalizado de acercamiento.
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>Nombre del Prospecto</label>
+                        <input type="text" id="nombreProspecto" placeholder="Ej: Juan Pérez">
+                    </div>
+
+                    <div class="form-group">
+                        <label>País (detección automática)</label>
+                        <input type="text" id="paisProspecto" placeholder="Se detectará automáticamente">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Información del Prospecto</label>
+                        <textarea id="infoProspecto" placeholder="Bio, intereses, actividad reciente..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Proveedor IA</label>
+                        <select id="providerCalificacion">
+                            <option value="qwen">Qwen (Gratis)</option>
+                            <option value="groq">Groq</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="openai">OpenAI</option>
+                        </select>
+                    </div>
+
+                    <button class="btn" onclick="calificarProspecto()">⭐ Calificar Prospecto</button>
+                </div>
+
+                <div>
+                    <div id="resultadoCalificacion" class="hidden">
+                        <div class="result-box">
+                            <h3>📊 Resultado de Calificación</h3>
+                            <div class="score-display" id="scoreDisplay">0/100</div>
+                            <div id="nivelConfianza"></div>
+                            <div id="mensajeGenerado" style="margin-top: 20px;"></div>
+                        </div>
+                        <button class="btn btn-success" onclick="guardarCalificacion()" style="margin-top: 16px; width: 100%;">💾 Guardar en CRM</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB PIPELINE 20M -->
+        <div id="pipeline" class="tab-content">
+            <h2 style="margin-bottom: 20px;">Pipeline Atracción 20M</h2>
+            
+            <div class="alert alert-info">
+                <strong>Flujo Diario (25 min/semana):</strong> Genera mensajes de atracción para prospectos calificados.
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Mensaje</label>
+                <select id="tipoMensaje">
+                    <option value="atraccion">Mensaje de Atracción</option>
+                    <option value="seguimiento">Seguimiento</option>
+                    <option value="cierre">Cierre / Agendar Cita</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Contexto del Prospecto</label>
+                <textarea id="contextoMensaje" placeholder="Información relevante para personalizar el mensaje..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Proveedor IA</label>
+                <select id="providerMensaje">
+                    <option value="qwen">Qwen (Gratis)</option>
+                    <option value="groq">Groq</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="mistral">Mistral</option>
+                    <option value="openai">OpenAI</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="generarMensaje()">✨ Generar Mensaje</button>
+
+            <div id="resultadoMensaje" class="hidden" style="margin-top: 24px;">
+                <div class="result-box">
+                    <h3>💬 Mensaje Generado</h3>
+                    <div id="contenidoMensaje" style="white-space: pre-wrap;"></div>
+                </div>
+                <div style="margin-top: 16px; display: flex; gap: 12px;">
+                    <button class="btn" onclick="copiarMensaje()">📋 Copiar</button>
+                    <button class="btn btn-success" onclick="guardarMensaje()">💾 Guardar en Pipeline</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB CONFIGURACIÓN -->
+        <div id="config" class="tab-content">
+            <h2 style="margin-bottom: 20px;">Configuración del Sistema</h2>
+            
+            <div class="alert alert-warning">
+                <strong>⚠️ Importante:</strong> Las API keys se guardan SOLO en tu navegador (localStorage). Nunca se envían a GitHub.
+            </div>
+
+            <div class="config-section">
+                <h3 style="margin-bottom: 16px;">🔑 API Keys</h3>
+                
+                <div class="form-group">
+                    <label>Qwen API Key (Gratis)</label>
+                    <div class="api-key-group">
+                        <input type="password" id="apiKeyQwen" placeholder="Ingresa tu API key de Qwen">
+                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyQwen')">👁️</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Groq API Key</label>
+                    <div class="api-key-group">
+                        <input type="password" id="apiKeyGroq" placeholder="Ingresa tu API key de Groq">
+                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyGroq')">👁️</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Gemini API Key</label>
+                    <div class="api-key-group">
+                        <input type="password" id="apiKeyGemini" placeholder="Ingresa tu API key de Gemini">
+                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyGemini')">👁️</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mistral API Key</label>
+                    <div class="api-key-group">
+                        <input type="password" id="apiKeyMistral" placeholder="Ingresa tu API key de Mistral">
+                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyMistral')">👁️</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>OpenAI API Key</label>
+                    <div class="api-key-group">
+                        <input type="password" id="apiKeyOpenai" placeholder="Ingresa tu API key de OpenAI">
+                        <button class="btn btn-secondary" onclick="toggleVisibility('apiKeyOpenai')">👁️</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3 style="margin-bottom: 16px;">🔗 Webhook de Make.com</h3>
+                
+                <div class="form-group">
+                    <label>Webhook URL - Calificación</label>
+                    <input type="url" id="webhookCalificacion" placeholder="https://hook.make.com/...">
+                </div>
+
+                <div class="form-group">
+                    <label>Webhook URL - Pipeline 20M</label>
+                    <input type="url" id="webhookPipeline" placeholder="https://hook.make.com/...">
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="guardarConfiguracion()" style="width: 100%;">💾 Guardar Configuración</button>
+        </div>
+
+        <!-- TAB ESTADÍSTICAS -->
+        <div id="stats" class="tab-content">
+            <h2 style="margin-bottom: 20px;">Estadísticas del Sistema</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="statCapturas">0</div>
+                    <div class="stat-label">Capturas Procesadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statCalificados">0</div>
+                    <div class="stat-label">Prospectos Calificados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statMensajes">0</div>
+                    <div class="stat-label">Mensajes Generados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statPromedio">0</div>
+                    <div class="stat-label">Score Promedio</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 32px;">
+                <h3 style="margin-bottom: 16px;">📈 Actividad Reciente</h3>
+                <div id="actividadReciente" style="background: #f8f9fa; padding: 20px; border-radius: 12px;">
+                    <p style="color: #666;">No hay actividad r        }
         button:hover { background: #1e3c72; }
         ul { list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto; }
         li {
