@@ -369,6 +369,7 @@
             <button class="tab active" onclick="switchTab('captura', event)">📸 Captura</button>
             <button class="tab" onclick="switchTab('calificacion', event)">⭐ Calificación</button>
             <button class="tab" onclick="switchTab('pipeline', event)">🚀 Pipeline 20M</button>
+            <button class="tab" onclick="switchTab('miPitch', event)">🎯 Mi Pitch</button>
             <button class="tab" onclick="switchTab('config', event)">⚙️ Configuración</button>
             <button class="tab" onclick="switchTab('stats', event)">📊 Estadísticas</button>
         </div>
@@ -404,9 +405,12 @@
                     <h3>📋 Información Extraída</h3>
                     <div id="contenidoExtraido"></div>
                 </div>
+                <div class="alert alert-success" style="margin-top: 16px;">
+                    ✅ Esta información ya se cargó automáticamente en Calificación y en Pipeline 20M — no necesitas volver a escribirla.
+                </div>
                 <div style="margin-top: 16px; display: flex; gap: 12px;">
-                    <button class="btn btn-success" onclick="enviarACalificacion()">⭐ Enviar a Calificación</button>
-                    <button class="btn btn-secondary" onclick="enviarAPipeline()">🚀 Enviar a Pipeline 20M</button>
+                    <button class="btn btn-success" onclick="enviarACalificacion()">⭐ Ir a Calificación</button>
+                    <button class="btn btn-secondary" onclick="enviarAPipeline()">🚀 Ir a Pipeline 20M</button>
                 </div>
             </div>
         </div>
@@ -489,6 +493,38 @@
             </div>
         </div>
 
+        <!-- TAB MI PITCH -->
+        <div id="miPitch" class="tab-content">
+            <h2 style="margin-bottom: 20px;">🎯 Mi Pitch de Negocio</h2>
+
+            <div class="alert alert-info">
+                <strong>Para qué sirve:</strong> Esta información se usa para personalizar TODOS los mensajes que genera Mistral, para que hablen de tu propuesta y tu perfil profesional, no de algo genérico. Cada socio que use este widget debe llenar esta pestaña con sus propios datos — no necesitan tocar la sección de Configuración (API Keys).
+            </div>
+
+            <div class="form-group">
+                <label>Tu profesión u oficio</label>
+                <input type="text" id="miProfesion" placeholder="Ej: Ingeniero Civil, Contador, Enfermera, Docente...">
+            </div>
+
+            <div class="form-group">
+                <label>Tu pitch personal (edítalo como quieras, es tu forma de contar tu historia)</label>
+                <textarea id="miPitchTexto" style="min-height: 160px;"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Público objetivo principal</label>
+                <select id="miPublico">
+                    <option value="profesionales y emprendedores">Profesionales y emprendedores</option>
+                    <option value="papás y mamás buscando ingresos extra">Papás y mamás buscando ingresos extra</option>
+                    <option value="estudiantes y jóvenes">Estudiantes y jóvenes</option>
+                    <option value="personas interesadas en bienestar y salud">Personas interesadas en bienestar y salud</option>
+                    <option value="público general">Público general</option>
+                </select>
+            </div>
+
+            <button class="btn btn-success" onclick="guardarPerfilNegocio()" style="width: 100%;">💾 Guardar Mi Pitch</button>
+        </div>
+
         <!-- TAB CONFIGURACIÓN -->
         <div id="config" class="tab-content">
             <h2 style="margin-bottom: 20px;">Configuración del Sistema</h2>
@@ -526,13 +562,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Webhook URL - Calificación (Make.com)</label>
-                    <input type="url" id="webhookCalificacion" placeholder="https://hook.make.com/...">
-                </div>
-
-                <div class="form-group">
-                    <label>Webhook URL - Pipeline 20M (Make.com)</label>
-                    <input type="url" id="webhookPipeline" placeholder="https://hook.make.com/...">
+                    <label>Webhook Único de Make.com (todo el flujo)</label>
+                    <input type="url" id="webhookUnico" placeholder="https://hook.make.com/...">
                 </div>
             </div>
 
@@ -573,6 +604,7 @@
         // Inicialización
         document.addEventListener('DOMContentLoaded', () => {
             cargarConfiguracion();
+            cargarPerfilNegocio();
             actualizarEstadisticas();
             setupFileUpload();
         });
@@ -716,6 +748,28 @@ Notas adicionales del usuario: ${notas || 'ninguna'}`;
             return config.landingPageUrl || '[tu link de landing page]';
         }
 
+        // Genera un ID único y estable para un prospecto, para que Make pueda
+        // actualizar la MISMA fila en Sheets en vez de crear una nueva cada vez.
+        function generarProspectoId() {
+            if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+            return 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        }
+
+        const PITCH_DEFAULT = `Soy [profesión], y hace un tiempo descubrí una forma de construir un ingreso adicional sin dejar mi carrera, basado en algo que todos hacemos: consumir. Me metí a fondo porque me convenció la lógica del modelo, no una promesa de dinero fácil. Hoy ayudo a otros profesionales a transformar su consumo mensual en un activo que genera ingresos residuales, mientras desarrollan habilidades de liderazgo que sirven en cualquier área de la vida. No es un trabajo más, es un proyecto de crecimiento personal con resultado económico.`;
+
+        // Devuelve un bloque de contexto de negocio para insertar en los prompts de Mistral
+        function getPerfilContexto() {
+            const perfil = JSON.parse(localStorage.getItem('rutaDiamantePerfil') || '{}');
+            const profesion = perfil.profesion || 'un profesional';
+            const pitch = (perfil.pitch || PITCH_DEFAULT).replace('[profesión]', profesion);
+            const publico = perfil.publico || 'profesionales y emprendedores';
+
+            return `Contexto de quien envía el mensaje: es ${profesion}, y su forma de presentar la oportunidad es esta (úsala como inspiración de tono y enfoque, no la copies literal):
+"${pitch}"
+Su público objetivo principal es: ${publico}.
+No menciones el nombre de ninguna empresa. Habla de desarrollo de activos financieros, liderazgo, crecimiento personal e ingresos por consumo inteligente.`;
+        }
+
         // ===== Procesar capturas con Gemma =====
         async function procesarCaptura(event) {
             if (currentImages.length === 0) {
@@ -748,11 +802,18 @@ Notas adicionales del usuario: ${notas || 'ninguna'}`;
                 document.getElementById('resultadoCaptura').classList.remove('hidden');
 
                 prospectoActual = {
+                    id: generarProspectoId(),
                     nombre: resultado.nombre,
                     pais: resultado.pais,
                     info: resultado.infoCompleta,
                     fecha: new Date().toISOString()
                 };
+
+                // Auto-llenar Calificación y Pipeline para no repetir el proceso manualmente
+                document.getElementById('nombreProspecto').value = prospectoActual.nombre;
+                document.getElementById('paisProspecto').value = prospectoActual.pais;
+                document.getElementById('infoProspecto').value = prospectoActual.info;
+                document.getElementById('contextoMensaje').value = prospectoActual.info;
 
                 incrementarStat('captura');
             } catch (error) {
@@ -782,12 +843,13 @@ Notas adicionales del usuario: ${notas || 'ninguna'}`;
 
             try {
                 const landingUrl = getLandingUrl();
-                const prompt = `Eres un asistente de prospección profesional en Instagram para un negocio de desarrollo de activos financieros (no menciones nombres de empresas ni lenguaje de marketing multinivel).
+                const perfilContexto = getPerfilContexto();
+                const prompt = `Eres un asistente de prospección profesional en Instagram. ${perfilContexto}
 Analiza este prospecto y responde SOLO con un objeto JSON válido, sin texto adicional, con esta estructura:
 {
   "score": (número entero 0-100 según el potencial real de interés en emprender o generar ingresos adicionales),
   "confianza": "high, medium o low",
-  "mensaje": "mensaje corto y natural de acercamiento en español, tono profesional y cercano, personalizado con el nombre y el contexto del prospecto, que invite a conocer más sin sonar a venta directa, mencionando de forma sutil que hay más información en ${landingUrl}"
+  "mensaje": "mensaje corto y natural de acercamiento en español, tono profesional y cercano, personalizado con el nombre y el contexto del prospecto, que genere curiosidad y abra conversación SIN incluir ningún link ni pedir que visite nada — es un primer contacto, el objetivo es solo iniciar el diálogo"
 }
 
 Prospecto: ${nombre}
@@ -809,6 +871,7 @@ Información: ${info}`;
 
                 prospectoActual = {
                     ...prospectoActual,
+                    id: (prospectoActual && prospectoActual.id) || generarProspectoId(),
                     nombre,
                     pais,
                     info,
@@ -842,13 +905,15 @@ Información: ${info}`;
 
             try {
                 const landingUrl = getLandingUrl();
+                const perfilContexto = getPerfilContexto();
                 const instrucciones = {
-                    atraccion: `Escribe un mensaje corto y natural de primer contacto en Instagram para atraer al prospecto a conocer más sobre desarrollo de activos financieros, sin sonar a venta directa ni mencionar nombres de empresas. Termina invitando a ver más información en ${landingUrl} de forma sutil.`,
-                    seguimiento: `Escribe un mensaje breve de seguimiento para alguien que ya recibió un primer mensaje pero no ha respondido. Tono cercano, sin presionar, recordando el link ${landingUrl}.`,
-                    cierre: `Escribe un mensaje para agendar una llamada de cierre de 20 minutos con un prospecto interesado, invitándolo a agendar y a completar sus datos en ${landingUrl}.`
+                    atraccion: `Escribe un mensaje corto y natural de primer contacto en Instagram para generar curiosidad y abrir conversación con el prospecto, sin sonar a venta directa. NO incluyas ningún link ni pidas que visite nada — el objetivo es solo iniciar el diálogo.`,
+                    seguimiento: `Escribe un mensaje breve de seguimiento para alguien que ya recibió un primer mensaje pero no ha respondido. Tono cercano, sin presionar, enfocado en retomar la conversación. NO incluyas ningún link — sigue siendo una etapa de conversación, no de cierre.`,
+                    cierre: `Escribe un mensaje para agendar una llamada de cierre de 20 minutos con un prospecto que YA mostró interés en la conversación. Aquí SÍ invita directamente a completar sus datos o agendar en este link: ${landingUrl}.`
                 };
 
-                const prompt = `Eres un asistente de prospección profesional en Instagram para un negocio de desarrollo de activos financieros. ${instrucciones[tipo]}
+                const prompt = `Eres un asistente de prospección profesional en Instagram. ${perfilContexto}
+${instrucciones[tipo]}
 Contexto del prospecto: ${contexto}
 Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionales.`;
 
@@ -875,29 +940,57 @@ Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionale
         async function guardarCalificacion() {
             if (!prospectoActual) return;
 
-            await enviarAWebhook('calificacion', prospectoActual);
+            await enviarAWebhook({
+                prospecto_id: prospectoActual.id,
+                fecha_actualizacion: new Date().toISOString(),
+                nombre: prospectoActual.nombre || '',
+                pais: prospectoActual.pais || '',
+                info: prospectoActual.info || '',
+                score: prospectoActual.score ?? '',
+                confianza: prospectoActual.confianza || '',
+                mensaje_calificacion: prospectoActual.mensaje || '',
+                tipo_mensaje_pipeline: '',
+                mensaje_pipeline: '',
+                etapa: 'calificado'
+            });
             incrementarStat('calificacion', prospectoActual.score);
-            alert('✅ Prospecto guardado en CRM');
+            alert('✅ Prospecto guardado en la hoja');
         }
 
-        // Guardar mensaje
+        // Guardar mensaje de pipeline
         async function guardarMensaje() {
             if (!mensajeActual) return;
 
-            await enviarAWebhook('pipeline', {
-                mensaje: mensajeActual,
-                prospecto: prospectoActual,
-                fecha: new Date().toISOString()
+            // Si no hay prospecto activo (se usó Pipeline sin pasar por Captura/Calificación),
+            // igual generamos un ID para que quede como una fila propia y consistente.
+            if (!prospectoActual) {
+                prospectoActual = { id: generarProspectoId() };
+            } else if (!prospectoActual.id) {
+                prospectoActual.id = generarProspectoId();
+            }
+
+            await enviarAWebhook({
+                prospecto_id: prospectoActual.id,
+                fecha_actualizacion: new Date().toISOString(),
+                nombre: prospectoActual.nombre || '',
+                pais: prospectoActual.pais || '',
+                info: prospectoActual.info || '',
+                score: prospectoActual.score ?? '',
+                confianza: prospectoActual.confianza || '',
+                mensaje_calificacion: prospectoActual.mensaje || '',
+                tipo_mensaje_pipeline: document.getElementById('tipoMensaje').value,
+                mensaje_pipeline: mensajeActual,
+                etapa: 'mensaje_generado'
             });
             incrementarStat('mensaje');
-            alert('✅ Mensaje guardado en Pipeline');
+            alert('✅ Mensaje guardado en la hoja');
         }
 
-        // Enviar a webhook de Make.com
-        async function enviarAWebhook(tipo, data) {
-            const webhookUrl = tipo === 'calificacion'
-                ? document.getElementById('webhookCalificacion').value
-                : document.getElementById('webhookPipeline').value;
+        // Enviar al único webhook de Make.com — siempre incluye prospecto_id
+        // para que Make pueda buscar la fila existente y actualizarla (o crearla si no existe).
+        async function enviarAWebhook(data) {
+            const config = JSON.parse(localStorage.getItem('rutaDiamanteConfig') || '{}');
+            const webhookUrl = config.webhooks ? config.webhooks.unico : '';
 
             if (!webhookUrl) {
                 console.log('Webhook no configurado, datos:', data);
@@ -908,33 +1001,20 @@ Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionale
                 await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tipo: tipo,
-                        ...data
-                    })
+                    body: JSON.stringify(data)
                 });
             } catch (error) {
                 console.error('Error enviando a webhook:', error);
             }
         }
 
-        // Enviar a calificación desde captura
+        // Ir a Calificación (los campos ya se llenaron automáticamente al procesar la captura)
         function enviarACalificacion() {
-            if (!prospectoActual) return;
-
-            document.getElementById('nombreProspecto').value = prospectoActual.nombre;
-            document.getElementById('paisProspecto').value = prospectoActual.pais;
-            document.getElementById('infoProspecto').value = prospectoActual.info;
-
             document.querySelectorAll('.tab')[1].click();
         }
 
-        // Enviar a pipeline desde captura
+        // Ir a Pipeline (el contexto ya se llenó automáticamente al procesar la captura)
         function enviarAPipeline() {
-            if (!prospectoActual) return;
-
-            document.getElementById('contextoMensaje').value = prospectoActual.info;
-
             document.querySelectorAll('.tab')[2].click();
         }
 
@@ -947,8 +1027,7 @@ Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionale
                 },
                 landingPageUrl: document.getElementById('landingPageUrl').value,
                 webhooks: {
-                    calificacion: document.getElementById('webhookCalificacion').value,
-                    pipeline: document.getElementById('webhookPipeline').value
+                    unico: document.getElementById('webhookUnico').value
                 }
             };
 
@@ -967,9 +1046,26 @@ Responde solo con el texto del mensaje, sin comillas ni explicaciones adicionale
             document.getElementById('landingPageUrl').value = config.landingPageUrl || '';
 
             if (config.webhooks) {
-                document.getElementById('webhookCalificacion').value = config.webhooks.calificacion || '';
-                document.getElementById('webhookPipeline').value = config.webhooks.pipeline || '';
+                document.getElementById('webhookUnico').value = config.webhooks.unico || '';
             }
+        }
+
+        // Perfil de negocio (Mi Pitch) — separado de las API keys para que los socios lo llenen sin tocar Configuración
+        function guardarPerfilNegocio() {
+            const perfil = {
+                profesion: document.getElementById('miProfesion').value,
+                pitch: document.getElementById('miPitchTexto').value,
+                publico: document.getElementById('miPublico').value
+            };
+            localStorage.setItem('rutaDiamantePerfil', JSON.stringify(perfil));
+            alert('✅ Tu pitch fue guardado. A partir de ahora los mensajes se personalizarán con esta información.');
+        }
+
+        function cargarPerfilNegocio() {
+            const perfil = JSON.parse(localStorage.getItem('rutaDiamantePerfil') || '{}');
+            document.getElementById('miProfesion').value = perfil.profesion || '';
+            document.getElementById('miPitchTexto').value = perfil.pitch || PITCH_DEFAULT;
+            document.getElementById('miPublico').value = perfil.publico || 'profesionales y emprendedores';
         }
 
         function getApiKey(provider) {
